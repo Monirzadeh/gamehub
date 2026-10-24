@@ -13,7 +13,7 @@ fn cached_icon_path(id: &str) -> Option<PathBuf> {
     if path.exists() { Some(path) } else { None }
 }
 
-pub fn new(view_stack: Option<adw::ViewStack>) -> gtk::Box {
+pub fn new(view_stack: Option<gtk::Stack>) -> gtk::Box {
     let system_info = SystemInfo::new();
 
     let toast_overlay = adw::ToastOverlay::new();
@@ -148,6 +148,21 @@ pub fn new(view_stack: Option<adw::ViewStack>) -> gtk::Box {
         .title("Quick Actions")
         .build();
 
+    let games_row = adw::ActionRow::builder()
+        .title("My Games")
+        .subtitle("Add and launch your Windows games with Proton")
+        .activatable(true)
+        .build();
+    games_row.add_prefix(&gtk::Image::from_icon_name("applications-games-symbolic"));
+    games_row.add_suffix(&gtk::Image::from_icon_name("go-next"));
+    if let Some(ref vs) = view_stack {
+        let vs_games = vs.clone();
+        games_row.connect_activated(move |_| {
+            vs_games.set_visible_child_name("games");
+        });
+    }
+    quick_group.add(&games_row);
+
     let install_row = adw::ActionRow::builder()
         .title("Install Game Launchers")
         .subtitle("Steam, Lutris, Heroic, RetroArch, Prism and more")
@@ -173,7 +188,7 @@ pub fn new(view_stack: Option<adw::ViewStack>) -> gtk::Box {
     if let Some(ref vs) = view_stack {
         let vs_proton = vs.clone();
         protondb_row.connect_activated(move |_| {
-            vs_proton.set_visible_child_name("proton");
+            vs_proton.set_visible_child_name("compatibility");
         });
     }
     quick_group.add(&protondb_row);
@@ -241,9 +256,9 @@ pub fn new(view_stack: Option<adw::ViewStack>) -> gtk::Box {
         .build();
     launchers_group.add(&launchers_status);
 
-    let launchers_box = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(0)
+    let launchers_box = gtk::ListBox::builder()
+        .selection_mode(gtk::SelectionMode::None)
+        .css_classes(["boxed-list"])
         .visible(false)
         .build();
     launchers_group.add(&launchers_box);

@@ -54,6 +54,7 @@ fn setup_actions(app: &adw::Application) {
     app.add_action(&shortcuts_action);
 
     app.set_accels_for_action("app.quit", &["<primary>q"]);
+    app.set_accels_for_action("app.shortcuts", &["<primary>question"]);
 }
 
 fn show_about(app: &adw::Application) {
@@ -79,11 +80,110 @@ fn show_shortcuts(app: &adw::Application) {
         <property name="title">General</property>
         <child>
           <object class="GtkShortcutsGroup">
-            <property name="title">Shortcuts</property>
+            <property name="title">Application</property>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title">Quit</property>
                 <property name="accelerator">&lt;primary&gt;q</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Close Window</property>
+                <property name="accelerator">&lt;primary&gt;w</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Keyboard Shortcuts</property>
+                <property name="accelerator">&lt;primary&gt;question</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkShortcutsGroup">
+            <property name="title">Go To</property>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Games</property>
+                <property name="accelerator">&lt;primary&gt;1</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Dashboard</property>
+                <property name="accelerator">&lt;primary&gt;2</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Launchers</property>
+                <property name="accelerator">&lt;primary&gt;3</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Proton Tools</property>
+                <property name="accelerator">&lt;primary&gt;4</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Compatibility</property>
+                <property name="accelerator">&lt;primary&gt;5</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Steam Session</property>
+                <property name="accelerator">&lt;primary&gt;6</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Tools</property>
+                <property name="accelerator">&lt;primary&gt;7</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Settings</property>
+                <property name="accelerator">&lt;primary&gt;8</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkShortcutsSection">
+        <property name="title">Games</property>
+        <child>
+          <object class="GtkShortcutsGroup">
+            <property name="title">Library</property>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Add Game</property>
+                <property name="accelerator">&lt;primary&gt;n</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Search Games</property>
+                <property name="accelerator">&lt;primary&gt;f</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Refresh Library</property>
+                <property name="accelerator">F5</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Close Search / Go Back</property>
+                <property name="accelerator">Escape</property>
               </object>
             </child>
           </object>

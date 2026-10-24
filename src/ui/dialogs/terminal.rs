@@ -15,36 +15,36 @@ pub fn show(
     command: &str,
     on_complete: Option<Box<dyn FnOnce(bool) + 'static>>,
 ) {
-    let dialog = adw::Window::builder()
-        .transient_for(parent)
-        .modal(true)
-        .default_width(800)
-        .default_height(500)
+    let dialog = adw::Dialog::builder()
         .title(title)
+        .content_width(760)
+        .content_height(500)
         .build();
 
-    let box_ = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(0)
-        .build();
+    let toolbar = adw::ToolbarView::new();
 
-    let header = adw::HeaderBar::new();
+    let header = adw::HeaderBar::builder()
+        .title_widget(&adw::WindowTitle::new(title, ""))
+        .build();
 
     let close_btn = gtk::Button::with_label("Close");
     close_btn.set_sensitive(false);
     let dialog_close = dialog.clone();
     close_btn.connect_clicked(move |_| {
-        dialog_close.close();
+        dialog_close.force_close();
     });
     header.pack_end(&close_btn);
-
-    box_.append(&header);
+    toolbar.add_top_bar(&header);
 
     let text_view = gtk::TextView::builder()
         .vexpand(true)
         .hexpand(true)
         .editable(false)
         .monospace(true)
+        .left_margin(12)
+        .right_margin(12)
+        .top_margin(12)
+        .bottom_margin(12)
         .build();
 
     text_view.set_cursor_visible(false);
@@ -61,7 +61,6 @@ pub fn show(
         .vexpand(true)
         .build();
     terminal_box.append(&scrolled);
-    box_.append(&terminal_box);
 
     let status_box = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
@@ -84,10 +83,11 @@ pub fn show(
         .build();
     status_box.append(&spinner);
 
-    box_.append(&status_box);
+    terminal_box.append(&status_box);
+    toolbar.set_content(Some(&terminal_box));
 
-    dialog.set_content(Some(&box_));
-    dialog.present();
+    dialog.set_child(Some(&toolbar));
+    dialog.present(Some(parent));
 
     status_label.set_label("Running command...");
     spinner.start();

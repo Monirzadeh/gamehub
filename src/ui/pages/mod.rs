@@ -1,5 +1,6 @@
 pub mod compat;
 pub mod dashboard;
+pub mod games;
 pub mod launchers;
 pub mod proton;
 pub mod settings;
