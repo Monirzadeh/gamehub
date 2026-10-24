@@ -5,6 +5,28 @@ All notable changes to Parch Linux Gamehub will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-24
+
+### Added
+
+- **Game Library & Proton Runner**:
+  - Full game management library to add, view, edit, and organize Windows and custom games.
+  - Dedicated Games page with responsive card grid view and quick-action run/kill buttons.
+  - Game Details pane displaying playtime, Proton version, prefix path, launch options, and game cover.
+  - Add/Edit Game dialog with automatic executable discovery and heuristic candidate ranking.
+  - Steam match detection with automatic artwork (header/capsule/icon) and AppID fetching from Steam Store API.
+  - Direct Winetricks integration for per-prefix component and DLL management.
+  - Process monitoring and one-click game termination support.
+- **Proton & Gaming optimizations**:
+  - `umu-launcher` integration with automatic fallback to system Proton.
+  - GameMode integration for low-latency gaming execution.
+  - Custom environment variables, command arguments, and prefix architecture isolation.
+
+### Packaging
+
+- Added `umu-launcher`, `gamemode`, and `winetricks` as optional dependencies in `PKGBUILD`.
+- Added `git` to `makedepends` in `PKGBUILD`.
+
 ## [0.1.1] - 2026-07-21
 
 ### Fixed

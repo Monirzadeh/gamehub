@@ -7,7 +7,7 @@ arch=('x86_64')
 url="https://parchlinux.com"
 license=('AGPL3')
 depends=('gtk4' 'libadwaita' 'vte4' 'glib2' 'hicolor-icon-theme' 'curl' 'tar' 'librsvg')
-makedepends=('cargo' 'glib2-devel')
+makedepends=('cargo' 'glib2-devel' 'git')
 optdepends=('umu-launcher: run Windows games with Proton'
             'gamemode: GameMode performance optimizations for games'
             'winetricks: install Windows components into game prefixes')
