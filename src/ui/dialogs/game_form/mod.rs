@@ -3,6 +3,7 @@ mod steam_match;
 
 use std::cell::RefCell;
 use std::path::Path;
+use std::path::PathBuf; 
 use std::rc::Rc;
 
 use adw::prelude::*;
@@ -20,6 +21,7 @@ pub(super) struct FormState {
     pub(super) name_row: adw::EntryRow,
     pub(super) exe_label: gtk::Label,
     pub(super) workdir_label: gtk::Label,
+    pub(super) covers_dir: PathBuf, 
 }
 
 /// Add/edit dialog for a game entry: executable picker, folder scan for exe
@@ -66,6 +68,9 @@ pub fn show(
     let page = adw::PreferencesPage::new();
 
     // --- Shared form state ----------------------------------------------------
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let covers_dir = PathBuf::from(home).join(".local/share/gamehub/covers");
+    let _ = std::fs::create_dir_all(&covers_dir);
     let form = Rc::new(FormState {
         exe_path: Rc::new(RefCell::new(
             existing.as_ref().map(|g| g.exe_path.clone()).unwrap_or_default(),
@@ -84,6 +89,7 @@ pub fn show(
             .ellipsize(gtk::pango::EllipsizeMode::Start)
             .css_classes(["dim-label"])
             .build(),
+        covers_dir,
     });
     form.exe_label.set_label(&form.exe_path.borrow());
     form.workdir_label.set_label(
