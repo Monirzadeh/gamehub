@@ -27,6 +27,7 @@ pub struct PageState {
     pub(super) empty_box: gtk::Box,
     pub(super) search_entry: gtk::SearchEntry,
     pub(super) toast: adw::ToastOverlay,
+    pub(super) covers_dir: PathBuf, 
 }
 
 pub(super) type State = Rc<PageState>;
@@ -155,6 +156,10 @@ pub fn new() -> gtk::Box {
         .tag("detail")
         .build();
 
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let covers_dir = PathBuf::from(home).join(".local/share/gamehub/covers");
+    let _ = std::fs::create_dir_all(&covers_dir);
+
     let state: State = Rc::new(PageState {
         library: Rc::new(RefCell::new(GameLibrary::load())),
         tiers: Rc::new(RefCell::new(HashMap::new())),
@@ -170,6 +175,7 @@ pub fn new() -> gtk::Box {
         empty_box: empty_box.clone(),
         search_entry: search_entry.clone(),
         toast: toast_overlay.clone(),
+        covers_dir,
     });
 
     // --- Wiring ---------------------------------------------------------------
@@ -241,12 +247,11 @@ fn add_shortcuts(
             gtk::gdk::ModifierType::CONTROL_MASK,
         )),
         Some(gtk::CallbackAction::new(move |widget, _| {
-            match widget.root().and_downcast_ref::<gtk::Window>() {
-                Some(window) => {
-                    open_add_dialog(&state_n, window);
-                    glib::Propagation::Stop
-                }
-                None => glib::Propagation::Proceed,
+            if let Some(window) = widget.root().and_downcast_ref::<gtk::Window>() {
+                open_add_dialog(&state_n, window);
+                glib::Propagation::Stop
+            } else {
+                glib::Propagation::Proceed
             }
         })),
     ));
@@ -314,7 +319,7 @@ pub(super) fn open_add_dialog(state: &State, window: &gtk::Window) {
         window,
         state.library.clone(),
         None,
-        Box::new(move |entry| {
+        Box::new(move |entry: crate::modules::game_library::GameEntry| {
             toast(&state, &format!("Added {} to your library", entry.name));
             grid::rebuild_grid(&state);
             ensure_meta(&state);
@@ -371,6 +376,7 @@ pub(super) fn tier_badge(tier: &str) -> (&'static str, &'static str) {
 pub(super) fn ensure_meta(state: &State) {
     // (appid, need_tier, need_cover) decided up front so the worker thread
     // touches no shared state.
+    let covers_dir = state.covers_dir.clone(); 
     let jobs: Vec<(u64, bool, bool)> = {
         let lib = state.library.borrow();
         let fetching = state.fetching.borrow();
@@ -380,7 +386,15 @@ pub(super) fn ensure_meta(state: &State) {
             .iter()
             .filter_map(|g| g.steam_appid)
             .filter(|id| !fetching.contains(id))
-            .map(|id| (id, !tiers.contains_key(&id), !covers.contains_key(&id)))
+            .map(|id| {
+                let need_tier = !tiers.contains_key(&id);
+                
+                let local_custom_path = covers_dir.join(format!("{}.png", id));
+                let has_cached_cover = covers.contains_key(&id);
+                let need_cover = !has_cached_cover || (has_cached_cover && !local_custom_path.is_file());
+
+                (id, need_tier, need_cover)
+            })
             .filter(|(_, tier, cover)| *tier || *cover)
             .collect()
     };
@@ -396,9 +410,11 @@ pub(super) fn ensure_meta(state: &State) {
     }
 
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(u64, Option<String>, Option<PathBuf>)>>();
+    let worker_covers_dir = state.covers_dir.clone();
 
     std::thread::spawn(move || {
         let mut results = Vec::new();
+
         for (id, need_tier, need_cover) in jobs {
             let tier = if need_tier {
                 crate::modules::protondb::ProtonDbClient::get_protondb_summary(id)
@@ -407,7 +423,22 @@ pub(super) fn ensure_meta(state: &State) {
                 None
             };
             let cover = if need_cover {
-                crate::modules::protondb::ProtonDbClient::get_cover_image(id)
+                let local_custom_path = worker_covers_dir.join(format!("{}.png", id));
+                if local_custom_path.is_file() {
+                    Some(local_custom_path) 
+                } else {
+                    let online_res = crate::modules::protondb::ProtonDbClient::get_cover_image(id);
+                    if online_res.is_some() {
+                        online_res
+                    } else {
+                        let default_fallback = covers_dir.join("default.png");
+                        if default_fallback.is_file() {
+                            Some(default_fallback)
+                        } else {
+                            None 
+                        }
+                    }
+                }
             } else {
                 None
             };
@@ -428,6 +459,8 @@ pub(super) fn ensure_meta(state: &State) {
             }
             if let Some(c) = cover {
                 state.covers.borrow_mut().insert(id, c);
+            } else {
+                state.covers.borrow_mut().remove(&id); 
             }
             state.fetching.borrow_mut().remove(&id);
             refreshed_ids.insert(id);

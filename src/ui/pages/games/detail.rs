@@ -438,15 +438,25 @@ pub(super) fn open_edit_dialog(
     state: &State,
     window: &gtk::Window,
     game: GameEntry,
-    on_saved: Box<dyn FnOnce(GameEntry) + 'static>,
+    on_saved: Box<dyn FnOnce(GameEntry) + 'static>, // No underscore needed, we are using it now!
 ) {
+    let state_clone = state.clone();
     crate::ui::dialogs::game_form::show(
         window,
         state.library.clone(),
         Some(game),
-        on_saved,
+        Box::new(move |entry| {
+            // 1. Invalidate cache: Remove AppID from memory so it is forced to check disk again
+            if let Some(appid) = entry.steam_appid {
+                state_clone.covers.borrow_mut().remove(&appid);
+            }
+
+            // 2. Call the original on_saved closure that was passed into this function
+            on_saved(entry);
+        }),
     );
 }
+
 
 /// Background preflight for the detail page; result is cached and the detail
 /// view is refreshed if it is still the one on screen.
