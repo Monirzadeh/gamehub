@@ -159,6 +159,7 @@ fn build_page(
                 .map(|t| t.description)
                 .unwrap_or(""),
         )
+        .subtitle_lines(0)
         .build();
     desc_row.add_prefix(&gtk::Image::from_icon_name("dialog-information-symbolic"));
     selector_group.add(&desc_row);
@@ -234,12 +235,14 @@ fn build_page(
     let action_group = adw::PreferencesGroup::builder().build();
 
     let install_btn = gtk::Button::builder()
-        .label("Install Selected")
+        .label("Install")
+        .tooltip_text("Install Selected")
         .css_classes(["suggested-action", "pill"])
         .hexpand(true)
         .build();
     let remove_btn = gtk::Button::builder()
-        .label("Remove Selected")
+        .label("Remove")
+        .tooltip_text("Remove Selected")
         .css_classes(["destructive-action", "pill"])
         .hexpand(true)
         .sensitive(false)
@@ -492,6 +495,8 @@ fn populate_view(
             let row = adw::ActionRow::builder()
                 .title(&r.version)
                 .subtitle(&r.asset_name)
+                .title_lines(0)
+                .subtitle_lines(0)
                 .activatable(true)
                 .build();
             row.add_prefix(&gtk::Image::from_icon_name("package-x-generic-symbolic"));
@@ -521,6 +526,8 @@ fn populate_view(
             let row = adw::ActionRow::builder()
                 .title(&v.version)
                 .subtitle(&*v.path.to_string_lossy())
+                .title_lines(0)
+                .subtitle_lines(0)
                 .build();
             row.add_prefix(&gtk::Image::from_icon_name("emblem-ok-symbolic"));
 

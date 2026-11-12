@@ -36,7 +36,7 @@ fn build_game_card(state: &State, game: &GameEntry) -> gtk::Box {
         .orientation(gtk::Orientation::Vertical)
         .spacing(0)
         .css_classes(["card"])
-        .width_request(200)
+        .hexpand(true)
         .build();
 
     match game
@@ -46,7 +46,9 @@ fn build_game_card(state: &State, game: &GameEntry) -> gtk::Box {
         Some(path) => {
             let pic = gtk::Picture::for_filename(path);
             pic.set_content_fit(gtk::ContentFit::Cover);
-            pic.set_size_request(200, 100);
+            pic.set_can_shrink(true);
+            pic.set_size_request(-1, 100);
+            pic.set_hexpand(true);
             card.append(&pic);
         }
         None => {
@@ -54,7 +56,7 @@ fn build_game_card(state: &State, game: &GameEntry) -> gtk::Box {
                 .orientation(gtk::Orientation::Vertical)
                 .halign(gtk::Align::Center)
                 .valign(gtk::Align::Center)
-                .width_request(200)
+                .hexpand(true)
                 .height_request(100)
                 .build();
             let icon = gtk::Image::from_icon_name("applications-games-symbolic");

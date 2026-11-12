@@ -2,6 +2,7 @@ use adw::prelude::*;
 use gtk::glib;
 use gtk::gio;
 
+use crate::config::AppConfig;
 use crate::ui::pages;
 
 /// One entry in the sidebar: (stack name, page title, icon).
@@ -16,19 +17,43 @@ const NAV_ITEMS: &[(&str, &str, &str)] = &[
     ("settings", "Settings", "preferences-system"),
 ];
 
+/// Build a toggle button bound to the desktop split view's `show-sidebar` property.
+/// Hidden automatically on small screens (`<= 640px`).
+fn sidebar_toggle_button(
+    desktop_split: &adw::OverlaySplitView,
+    mobile_split: &adw::NavigationSplitView,
+) -> gtk::ToggleButton {
+    let btn = gtk::ToggleButton::builder()
+        .icon_name("sidebar-show-symbolic")
+        .tooltip_text("Toggle Sidebar (Ctrl+/)")
+        .build();
+    desktop_split
+        .bind_property("show-sidebar", &btn, "active")
+        .bidirectional()
+        .sync_create()
+        .build();
+    mobile_split
+        .bind_property("collapsed", &btn, "visible")
+        .invert_boolean()
+        .sync_create()
+        .build();
+    btn
+}
+
 /// Wrap a page widget in its own header bar so every page in the content
 /// stack looks like a full standalone view.
-fn page_container(title: &str, widget: &impl IsA<gtk::Widget>) -> adw::ToolbarView {
+fn page_container(title: &str, widget: &impl IsA<gtk::Widget>, desktop_split: &adw::OverlaySplitView, mobile_split: &adw::NavigationSplitView,) -> adw::ToolbarView {
     let toolbar = adw::ToolbarView::new();
     let header = adw::HeaderBar::builder()
         .title_widget(&adw::WindowTitle::new(title, ""))
         .build();
+    header.pack_start(&sidebar_toggle_button(desktop_split, mobile_split));
     toolbar.add_top_bar(&header);
     toolbar.set_content(Some(widget));
     toolbar
 }
 
-fn sidebar_page() -> (adw::NavigationPage, gtk::ListBox, adw::HeaderBar) {
+fn sidebar_page() -> (gtk::Widget, gtk::ListBox, adw::HeaderBar) {
     let list = gtk::ListBox::builder()
         .css_classes(["navigation-sidebar"])
         .selection_mode(gtk::SelectionMode::Single)
@@ -68,69 +93,124 @@ fn sidebar_page() -> (adw::NavigationPage, gtk::ListBox, adw::HeaderBar) {
     toolbar.add_top_bar(&header);
     toolbar.set_content(Some(&scrolled));
 
-    (
-        adw::NavigationPage::builder()
-            .child(&toolbar)
-            .title("Sidebar")
-            .build(),
-        list,
-        header,
-    )
+    (toolbar.upcast(), list, header)
 }
 
 pub fn create(app: &adw::Application) -> adw::ApplicationWindow {
     let content_stack = gtk::Stack::builder()
         .transition_type(gtk::StackTransitionType::Crossfade)
         .transition_duration(150)
+        .hhomogeneous(false)
         .vexpand(true)
         .build();
 
+    let config = std::rc::Rc::new(AppConfig::new());
+    let (sidebar, sidebar_list, sidebar_header) = sidebar_page();
+
+    // Desktop view: collapsible sidebar on big screens (> 720px)
+    let desktop_split = adw::OverlaySplitView::builder()
+        .sidebar(&sidebar)
+        .content(&content_stack)
+        .show_sidebar(config.show_sidebar())
+        .collapsed(false)
+        .build();
+
+    // Mobile view: exact original NavigationSplitView on small screens (<= 640px)
+    let mobile_sidebar_page = adw::NavigationPage::builder()
+        .child(&gtk::Box::new(gtk::Orientation::Vertical, 0))
+        .title("Sidebar")
+        .build();
+    let mobile_content_page = adw::NavigationPage::builder()
+        .child(&gtk::Box::new(gtk::Orientation::Vertical, 0))
+        .title("Gamehub")
+        .build();
+    let mobile_split = adw::NavigationSplitView::builder()
+        .sidebar(&mobile_sidebar_page)
+        .content(&mobile_content_page)
+        .build();
+
+    let root_stack = adw::ViewStack::builder()
+        .hhomogeneous(false)
+        .build();
+    root_stack.add_named(&desktop_split, Some("desktop"));
+    root_stack.add_named(&mobile_split, Some("mobile"));
+    root_stack.set_visible_child_name("desktop");
+
+    // Move sidebar & content cleanly between desktop and mobile layouts at 640px
+    {
+        let config = config.clone();
+        let sidebar = sidebar.clone();
+        let content_stack = content_stack.clone();
+        let desktop_split = desktop_split.clone();
+        let mobile_sidebar_page = mobile_sidebar_page.clone();
+        let mobile_content_page = mobile_content_page.clone();
+        let root_stack = root_stack.clone();
+        mobile_split.connect_collapsed_notify(move |split| {
+            if split.is_collapsed() {
+                desktop_split.set_collapsed(true);
+                desktop_split.set_sidebar(gtk::Widget::NONE);
+                desktop_split.set_content(gtk::Widget::NONE);
+                mobile_sidebar_page.set_child(Some(&sidebar));
+                mobile_content_page.set_child(Some(&content_stack));
+                split.set_show_content(true);
+                root_stack.set_visible_child_name("mobile");
+            } else {
+                mobile_sidebar_page.set_child(gtk::Widget::NONE);
+                mobile_content_page.set_child(gtk::Widget::NONE);
+                desktop_split.set_collapsed(false);
+                desktop_split.set_sidebar(Some(&sidebar));
+                desktop_split.set_content(Some(&content_stack));
+                desktop_split.set_show_sidebar(config.show_sidebar());
+                root_stack.set_visible_child_name("desktop");
+            }
+        });
+    }
+
+    {
+        let config = config.clone();
+        let mobile_split = mobile_split.clone();
+        desktop_split.connect_show_sidebar_notify(move |split| {
+            if !mobile_split.is_collapsed() {
+                config.set_show_sidebar(split.shows_sidebar());
+            }
+        });
+    }
+
     // The Games page manages its own header bars (library + pushed detail),
     // every other page gets a generic one.
-    let games = pages::games::new();
+    let (games, games_flowbox, games_add_content) =
+        pages::games::new(&sidebar_toggle_button(&desktop_split, &mobile_split));
     content_stack.add_named(&games, Some("games"));
 
     let dashboard = pages::dashboard::new(Some(content_stack.clone()));
-    content_stack.add_named(&page_container("Dashboard", &dashboard), Some("dashboard"));
-    let launchers = pages::launchers::new();
-    content_stack.add_named(&page_container("Launchers", &launchers), Some("launchers"));
+    content_stack.add_named(&page_container("Dashboard", &dashboard, &desktop_split, &mobile_split),Some("dashboard"),);
+    let (launchers, launchers_flowbox) = pages::launchers::new();
+    content_stack.add_named(&page_container("Launchers", &launchers, &desktop_split, &mobile_split),Some("launchers"),);
     let proton = pages::proton::new();
-    content_stack.add_named(&page_container("Proton Tools", &proton), Some("proton"));
+    content_stack.add_named(&page_container("Proton Tools", &proton, &desktop_split, &mobile_split),Some("proton"),);
     let compat = pages::compat::new();
-    content_stack.add_named(&page_container("Compatibility", &compat), Some("compatibility"));
+    content_stack.add_named(&page_container("Compatibility", &compat, &desktop_split, &mobile_split),Some("compatibility"),);
     let steam_session = pages::steam_session::new();
-    content_stack.add_named(&page_container("Steam Session", &steam_session), Some("steam-session"));
+    content_stack.add_named(&page_container("Steam Session", &steam_session, &desktop_split, &mobile_split),Some("steam-session"),);
     let tools = pages::tools::new();
-    content_stack.add_named(&page_container("Tools", &tools), Some("tools"));
-    let settings = pages::settings::new();
-    content_stack.add_named(&page_container("Settings", &settings), Some("settings"));
+    content_stack.add_named(&page_container("Tools", &tools, &desktop_split, &mobile_split),Some("tools"),);
+    let settings = pages::settings::new();content_stack.add_named(&page_container("Settings", &settings, &desktop_split, &mobile_split),Some("settings"),);
 
-    let (sidebar, sidebar_list, sidebar_header) = sidebar_page();
-    let content = adw::NavigationPage::builder()
-        .child(&content_stack)
-        .title("Gamehub")
-        .build();
-
-    let split = adw::NavigationSplitView::builder()
-        .sidebar(&sidebar)
-        .content(&content)
-        .build();
-
-    let split_for_nav = split.clone();
+    let mobile_split_for_nav = mobile_split.clone();
     let stack_for_sidebar = content_stack.clone();
     sidebar_list.connect_row_activated(move |_, row| {
         stack_for_sidebar.set_visible_child_name(&row.widget_name());
         // On narrow widths the sidebar is a pushed page — go back to content.
-        split_for_nav.set_show_content(true);
+        mobile_split_for_nav.set_show_content(true);
     });
 
-    // --- Keyboard shortcuts: Ctrl+1..8 switches pages, Ctrl+W closes ----------
+    // --- Keyboard shortcuts: Ctrl+1..8 switches pages, Ctrl+/ toggles sidebar, Ctrl+W closes
     let actions = gio::SimpleActionGroup::new();
     for (idx, (name, _, _)) in NAV_ITEMS.iter().enumerate() {
         let action = gio::SimpleAction::new(&format!("goto-{}", name), None);
         let stack = content_stack.clone();
         let list = sidebar_list.clone();
-        let split_cb = split.clone();
+        let mobile_cb = mobile_split.clone();
         let target = name.to_string();
         action.connect_activate(move |_, _| {
             stack.set_visible_child_name(&target);
@@ -144,7 +224,7 @@ pub fn create(app: &adw::Application) -> adw::ApplicationWindow {
                     }
                 }
             }
-            split_cb.set_show_content(true);
+            mobile_cb.set_show_content(true);
         });
         actions.add_action(&action);
         app.set_accels_for_action(
@@ -152,6 +232,17 @@ pub fn create(app: &adw::Application) -> adw::ApplicationWindow {
             &[&format!("<primary>{}", idx + 1)],
         );
     }
+
+    let toggle_sidebar_action = gio::SimpleAction::new("toggle-sidebar", None);
+    let desktop_toggle = desktop_split.clone();
+    let mobile_toggle = mobile_split.clone();
+    toggle_sidebar_action.connect_activate(move |_, _| {
+        if !mobile_toggle.is_collapsed() {
+            desktop_toggle.set_show_sidebar(!desktop_toggle.shows_sidebar());
+        }
+    });
+    actions.add_action(&toggle_sidebar_action);
+    app.set_accels_for_action("win.toggle-sidebar", &["<primary>slash"]);
 
     let close_action = gio::SimpleAction::new("close", None);
     actions.add_action(&close_action);
@@ -175,7 +266,7 @@ pub fn create(app: &adw::Application) -> adw::ApplicationWindow {
         .default_width(1000)
         .default_height(700)
         .title("Parch Linux Gamehub")
-        .content(&split)
+        .content(&root_stack)
         .build();
 
     window.insert_action_group("win", Some(&actions));
@@ -189,7 +280,34 @@ pub fn create(app: &adw::Application) -> adw::ApplicationWindow {
 
     if let Ok(cond) = adw::BreakpointCondition::parse("max-width: 640px") {
         let breakpoint = adw::Breakpoint::new(cond);
-        breakpoint.add_setter(&split, "collapsed", Some(&true.to_value()));
+        breakpoint.add_setter(&mobile_split, "collapsed", Some(&true.to_value()));
+        window.add_breakpoint(breakpoint);
+    }
+   
+    if let Ok(cond) = adw::BreakpointCondition::parse("max-width: 490px") {
+        let breakpoint = adw::Breakpoint::new(cond);
+        breakpoint.add_setter(&mobile_split, "collapsed", Some(&true.to_value()));
+        breakpoint.add_setter(
+            &games_flowbox,
+            "min-children-per-line",
+            Some(&1u32.to_value()),
+        );
+        breakpoint.add_setter(
+            &games_flowbox,
+            "max-children-per-line",
+            Some(&1u32.to_value()),
+        );
+        breakpoint.add_setter(
+            &launchers_flowbox,
+            "min-children-per-line",
+            Some(&1u32.to_value()),
+        );
+        breakpoint.add_setter(
+            &launchers_flowbox,
+            "max-children-per-line",
+            Some(&1u32.to_value()),
+        );
+        breakpoint.add_setter(&games_add_content, "label", Some(&"".to_value()));
         window.add_breakpoint(breakpoint);
     }
 

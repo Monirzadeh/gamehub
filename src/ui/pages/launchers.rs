@@ -4,7 +4,7 @@ use gtk::glib;
 use crate::modules::launcher_manager::{apply_locale, LauncherInfo, LauncherManager};
 use crate::ui::dialogs::terminal;
 
-pub fn new() -> gtk::Box {
+pub fn new() -> (gtk::Box, gtk::FlowBox) {
     let scroll = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
         .vexpand(true)
@@ -60,7 +60,7 @@ pub fn new() -> gtk::Box {
         .orientation(gtk::Orientation::Vertical)
         .build();
     container.append(&scroll);
-    container
+    (container, flowbox)
 }
 
 fn populate_flowbox(flowbox: &gtk::FlowBox, filter: &str, search_entry: &gtk::SearchEntry) {

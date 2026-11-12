@@ -77,6 +77,7 @@ fn show_shortcuts(app: &adw::Application) {
     <property name="modal">true</property>
     <child>
       <object class="GtkShortcutsSection">
+        <property name="section-name">general</property>
         <property name="title">General</property>
         <child>
           <object class="GtkShortcutsGroup">
@@ -91,6 +92,12 @@ fn show_shortcuts(app: &adw::Application) {
               <object class="GtkShortcutsShortcut">
                 <property name="title">Close Window</property>
                 <property name="accelerator">&lt;primary&gt;w</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Toggle Sidebar</property>
+                <property name="accelerator">&lt;primary&gt;slash</property>
               </object>
             </child>
             <child>

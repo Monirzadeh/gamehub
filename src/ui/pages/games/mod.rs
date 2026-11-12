@@ -32,7 +32,7 @@ pub struct PageState {
 
 pub(super) type State = Rc<PageState>;
 
-pub fn new() -> gtk::Box {
+pub fn new(sidebar_toggle: &gtk::ToggleButton) -> (gtk::Box, gtk::FlowBox, adw::ButtonContent) {
     let root = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .build();
@@ -63,17 +63,21 @@ pub fn new() -> gtk::Box {
         .sync_create()
         .build();
 
-    let add_btn = gtk::Button::builder().css_classes(["suggested-action"]).build();
-    add_btn.set_child(Some(
-        &adw::ButtonContent::builder()
-            .icon_name("list-add-symbolic")
-            .label("Add Game")
-            .build(),
-    ));
+    let add_content = adw::ButtonContent::builder()
+        .icon_name("list-add-symbolic")
+        .label("Add Game")
+        .build();
+        
+    let add_btn = gtk::Button::builder()
+        .css_classes(["suggested-action"])
+        .tooltip_text("Add Game (Ctrl+N)")
+        .child(&add_content)
+        .build();
 
     let header = adw::HeaderBar::builder()
         .title_widget(&adw::WindowTitle::new("Games", "Your Windows game library"))
         .build();
+    header.pack_start(sidebar_toggle);
     header.pack_end(&add_btn);
     header.pack_end(&search_toggle);
 
@@ -226,7 +230,7 @@ pub fn new() -> gtk::Box {
     grid::rebuild_grid(&state);
     ensure_meta(&state);
 
-    root
+    (root, flowbox, add_content)
 }
 
 /// Page-local shortcuts: Ctrl+N add game, Ctrl+F search, F5 refresh,

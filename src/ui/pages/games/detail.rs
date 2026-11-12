@@ -86,7 +86,9 @@ fn build_header_card(state: &State, game: &GameEntry) -> gtk::Box {
     {
         let pic = gtk::Picture::for_filename(path);
         pic.set_content_fit(gtk::ContentFit::Cover);
-        pic.set_size_request(460, 200);
+        pic.set_can_shrink(true);
+        pic.set_size_request(-1, 200);
+        pic.set_hexpand(true);
         card.append(&pic);
     }
 
@@ -252,6 +254,8 @@ fn build_checks_group(state: &State, game: &GameEntry) -> adw::PreferencesGroup 
                 let row = adw::ActionRow::builder()
                     .title(check.item)
                     .subtitle(&check.detail)
+                    .title_lines(0)
+                    .subtitle_lines(0)
                     .build();
                 let icon = gtk::Image::from_icon_name(icon_name);
                 icon.set_css_classes(&[icon_class]);
@@ -346,6 +350,7 @@ fn build_manage_group(state: &State, game: &GameEntry) -> adw::PreferencesGroup 
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default()
         }))
+        .subtitle_lines(0)
         .activatable(true)
         .build();
     game_folder_row.add_prefix(&gtk::Image::from_icon_name("folder-open-symbolic"));
@@ -367,6 +372,7 @@ fn build_manage_group(state: &State, game: &GameEntry) -> adw::PreferencesGroup 
     let prefix_row = adw::ActionRow::builder()
         .title("Open Wine Prefix")
         .subtitle(game.prefix_dir().to_string_lossy().to_string())
+        .subtitle_lines(0)
         .activatable(true)
         .build();
     prefix_row.add_prefix(&gtk::Image::from_icon_name("folder-templates-symbolic"));

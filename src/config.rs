@@ -64,4 +64,12 @@ impl AppConfig {
     pub fn set_welcome_banner_dismissed(&self, value: bool) {
         self.settings.borrow().set_boolean("welcome-banner-dismissed", value).ok();
     }
+
+    pub fn show_sidebar(&self) -> bool {
+        self.settings.borrow().boolean("show-sidebar")
+    }
+
+    pub fn set_show_sidebar(&self, value: bool) {
+        self.settings.borrow().set_boolean("show-sidebar", value).ok();
+    }
 }

@@ -31,5 +31,10 @@
       <summary>Welcome banner dismissed</summary>
       <description>Whether the welcome banner has been dismissed</description>
     </key>
+    <key name="show-sidebar" type="b">
+      <default>true</default>
+      <summary>Show sidebar</summary>
+      <description>Whether the navigation sidebar is expanded on wide screens</description>
+    </key>
   </schema>
 </schemalist>
